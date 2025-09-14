@@ -144,3 +144,17 @@ func (b *Buffer) TrimNewline() {
 func (b *Buffer) Free() {
 	b.pool.put(b)
 }
+
+// Truncate resets the underlying byte slice. Subsequent writes re-use the slice's
+// backing array.
+func (b *Buffer) Truncate(n int) {
+	if n == 0 {
+		b.Reset()
+		return
+	}
+	if n < 0 || n > b.Len() {
+		// panic("bytes.Buffer: truncation out of range")
+		return
+	}
+	b.bs = b.bs[:n]
+}

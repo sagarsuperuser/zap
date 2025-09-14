@@ -135,6 +135,7 @@ func NewExample(options ...Option) *Logger {
 		EncodeTime:     zapcore.ISO8601TimeEncoder,
 		EncodeDuration: zapcore.StringDurationEncoder,
 	}
+	fmt.Println("ZIIIIII")
 	core := zapcore.NewCore(zapcore.NewJSONEncoder(encoderCfg), os.Stdout, DebugLevel)
 	return New(core).WithOptions(options...)
 }
@@ -322,6 +323,7 @@ func (log *Logger) clone() *Logger {
 func (log *Logger) check(lvl zapcore.Level, msg string) *zapcore.CheckedEntry {
 	// Logger.check must always be called directly by a method in the
 	// Logger interface (e.g., Check, Info, Fatal).
+
 	// This skips Logger.check and the Info/Fatal/Check/etc. method that
 	// called it.
 	const callerSkipOffset = 2

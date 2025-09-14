@@ -326,6 +326,15 @@ func BenchmarkWithoutFields(b *testing.B) {
 			}
 		})
 	})
+	b.Run("Zap.Sugar.Text", func(b *testing.B) {
+		logger := newZapLoggerText(zap.DebugLevel).Sugar()
+		b.ResetTimer()
+		b.RunParallel(func(pb *testing.PB) {
+			for pb.Next() {
+				logger.Info(getMessage(0))
+			}
+		})
+	})
 	b.Run("Zap.SugarFormatting", func(b *testing.B) {
 		logger := newZapLogger(zap.DebugLevel).Sugar()
 		b.ResetTimer()
@@ -484,6 +493,15 @@ func BenchmarkAccumulatedContext(b *testing.B) {
 			}
 		})
 	})
+	b.Run("Zap.Sugar.Text", func(b *testing.B) {
+		logger := newZapLoggerText(zap.DebugLevel).With(fakeFields()...).Sugar()
+		b.ResetTimer()
+		b.RunParallel(func(pb *testing.PB) {
+			for pb.Next() {
+				logger.Info(getMessage(0))
+			}
+		})
+	})
 	b.Run("Zap.SugarFormatting", func(b *testing.B) {
 		logger := newZapLogger(zap.DebugLevel).With(fakeFields()...).Sugar()
 		b.ResetTimer()
@@ -591,6 +609,15 @@ func BenchmarkAddingFields(b *testing.B) {
 			}
 		})
 	})
+	b.Run("Zap.Text", func(b *testing.B) {
+		logger := newZapLoggerText(zap.DebugLevel)
+		b.ResetTimer()
+		b.RunParallel(func(pb *testing.PB) {
+			for pb.Next() {
+				logger.Info(getMessage(0), fakeFields()...)
+			}
+		})
+	})
 	b.Run("Zap.Check", func(b *testing.B) {
 		logger := newZapLogger(zap.DebugLevel)
 		b.ResetTimer()
@@ -624,6 +651,26 @@ func BenchmarkAddingFields(b *testing.B) {
 			}
 		})
 	})
+	b.Run("Zap.Sugar.Text", func(b *testing.B) {
+		logger := newZapLoggerText(zap.DebugLevel).Sugar()
+		b.ResetTimer()
+		b.RunParallel(func(pb *testing.PB) {
+			for pb.Next() {
+				logger.Infow(getMessage(0), fakeSugarFields()...)
+			}
+		})
+	})
+
+	b.Run("k8s.io/klog/v2/textlogger", func(b *testing.B) {
+		logger := newk8sTextLogger(zap.DebugLevel)
+		b.ResetTimer()
+		b.RunParallel(func(pb *testing.PB) {
+			for pb.Next() {
+				logger.Info(getMessage(0), fakeSugarFields()...)
+			}
+		})
+	})
+
 	b.Run("apex/log", func(b *testing.B) {
 		logger := newApexLog()
 		b.ResetTimer()
@@ -701,3 +748,127 @@ func BenchmarkAddingFields(b *testing.B) {
 		})
 	})
 }
+	b.Logf("Logging with additional context at each log site.")
+	b.Run("Zap", func(b *testing.B) {
+		logger := newZapLogger(zap.DebugLevel)
+		b.ResetTimer()
+		b.RunParallel(func(pb *testing.PB) {
+			for pb.Next() {
+				logger.Info(getMessage(0), fakeFields()...)
+			}
+		})
+	})
+	b.Run("Zap.Text", func(b *testing.B) {
+		logger := newZapLoggerText(zap.DebugLevel)
+		b.ResetTimer()
+		b.RunParallel(func(pb *testing.PB) {
+			for pb.Next() {
+				logger.Info(getMessage(0), fakeFields()...)
+			}
+		})
+	})
+	b.Run("Zap.Sugar", func(b *testing.B) {
+		logger := newZapLogger(zap.DebugLevel).Sugar()
+		b.ResetTimer()
+		b.RunParallel(func(pb *testing.PB) {
+			for pb.Next() {
+				logger.Infow(getMessage(0), fakeSugarFields()...)
+			}
+		})
+	})
+	b.Run("Zap.Sugar.Text", func(b *testing.B) {
+		logger := newZapLoggerText(zap.DebugLevel).Sugar()
+		b.ResetTimer()
+		b.RunParallel(func(pb *testing.PB) {
+			for pb.Next() {
+				logger.Infow(getMessage(0), fakeSugarFields()...)
+			}
+		})
+	})
+
+	b.Run("k8s.io/klog/v2/textlogger", func(b *testing.B) {
+		logger := newk8sTextLogger(zap.DebugLevel)
+		b.ResetTimer()
+		b.RunParallel(func(pb *testing.PB) {
+			for pb.Next() {
+				logger.Info(getMessage(0), fakeSugarFields()...)
+			}
+		})
+	})
+
+	b.Run("apex/log", func(b *testing.B) {
+		logger := newApexLog()
+		b.ResetTimer()
+		b.RunParallel(func(pb *testing.PB) {
+			for pb.Next() {
+				logger.WithFields(fakeApexFields()).Info(getMessage(0))
+			}
+		})
+	})
+	b.Run("go-kit/kit/log", func(b *testing.B) {
+		logger := newKitLog()
+		b.ResetTimer()
+		b.RunParallel(func(pb *testing.PB) {
+			for pb.Next() {
+				if err := logger.Log(fakeSugarFields()...); err != nil {
+					b.Fatal(err)
+				}
+			}
+		})
+	})
+	b.Run("inconshreveable/log15", func(b *testing.B) {
+		logger := newLog15()
+		b.ResetTimer()
+		b.RunParallel(func(pb *testing.PB) {
+			for pb.Next() {
+				logger.Info(getMessage(0), fakeSugarFields()...)
+			}
+		})
+	})
+	b.Run("sirupsen/logrus", func(b *testing.B) {
+		logger := newLogrus()
+		b.ResetTimer()
+		b.RunParallel(func(pb *testing.PB) {
+			for pb.Next() {
+				logger.WithFields(fakeLogrusFields()).Info(getMessage(0))
+			}
+		})
+	})
+	b.Run("rs/zerolog", func(b *testing.B) {
+		logger := newZerolog()
+		b.ResetTimer()
+		b.RunParallel(func(pb *testing.PB) {
+			for pb.Next() {
+				fakeZerologFields(logger.Info()).Msg(getMessage(0))
+			}
+		})
+	})
+	b.Run("rs/zerolog.Check", func(b *testing.B) {
+		logger := newZerolog()
+		b.ResetTimer()
+		b.RunParallel(func(pb *testing.PB) {
+			for pb.Next() {
+				if e := logger.Info(); e.Enabled() {
+					fakeZerologFields(e).Msg(getMessage(0))
+				}
+			}
+		})
+	})
+	b.Run("slog", func(b *testing.B) {
+		logger := newSlog()
+		b.ResetTimer()
+		b.RunParallel(func(pb *testing.PB) {
+			for pb.Next() {
+				logger.Info(getMessage(0), fakeSlogArgs()...)
+			}
+		})
+	})
+	b.Run("slog.LogAttrs", func(b *testing.B) {
+		logger := newSlog()
+		b.ResetTimer()
+		b.RunParallel(func(pb *testing.PB) {
+			for pb.Next() {
+				logger.LogAttrs(context.Background(), slog.LevelInfo, getMessage(0), fakeSlogFields()...)
+			}
+		})
+	})
