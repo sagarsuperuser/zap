@@ -135,7 +135,6 @@ func NewExample(options ...Option) *Logger {
 		EncodeTime:     zapcore.ISO8601TimeEncoder,
 		EncodeDuration: zapcore.StringDurationEncoder,
 	}
-	fmt.Println("ZIIIIII")
 	core := zapcore.NewCore(zapcore.NewJSONEncoder(encoderCfg), os.Stdout, DebugLevel)
 	return New(core).WithOptions(options...)
 }

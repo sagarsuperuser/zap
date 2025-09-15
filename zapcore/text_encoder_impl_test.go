@@ -26,9 +26,8 @@ import (
 	"testing"
 	"time"
 
-	"go.uber.org/zap/internal/bufferpool"
-
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestTextEncoderObjectFields(t *testing.T) {
@@ -109,7 +108,7 @@ func TestTextEncoderObjectFields(t *testing.T) {
 		},
 		{
 			desc:     "object (with nested array)",
-			expected: `"turducken.ducks"=[{"in"="chicken"},{"in"="chicken"}]`,
+			expected: `"turducken.ducks"=[{"in":"chicken"},{"in":"chicken"}]`,
 			f: func(e Encoder) {
 				assert.NoError(
 					t,
@@ -120,7 +119,7 @@ func TestTextEncoderObjectFields(t *testing.T) {
 		},
 		{
 			desc:     "array (with nested object)",
-			expected: `"turduckens"=[{"ducks"=[{"in"="chicken"},{"in"="chicken"}]},{"ducks"=[{"in"="chicken"},{"in"="chicken"}]}]`,
+			expected: `"turduckens"=[{"ducks":[{"in":"chicken"},{"in":"chicken"}]},{"ducks":[{"in":"chicken"},{"in":"chicken"}]}]`,
 			f: func(e Encoder) {
 				assert.NoError(
 					t,
@@ -160,7 +159,7 @@ func TestTextEncoderObjectFields(t *testing.T) {
 		{
 			desc: "namespace",
 			// EncodeEntry is responsible for closing all open namespaces.
-			expected: `"outermost.outer.foo"=1,"outermost.outer.inner.foo"=2,"outermost.outer.inner.innermost.foo"=3`,
+			expected: `"outermost.outer.foo"=1 "outermost.outer.inner.foo"=2 "outermost.outer.inner.innermost.foo"=3`,
 			f: func(e Encoder) {
 				e.OpenNamespace("outermost")
 				e.OpenNamespace("outer")
@@ -173,7 +172,7 @@ func TestTextEncoderObjectFields(t *testing.T) {
 		},
 		{
 			desc:     "object (no nested namespace)",
-			expected: `"obj.obj-out"="obj-outside-namespace","not-obj"="should-be-outside-obj"`,
+			expected: `"obj.obj-out"="obj-outside-namespace" "not-obj"="should-be-outside-obj"`,
 			f: func(e Encoder) {
 				assert.NoError(t, e.AddObject("obj", maybeNamespace{false}))
 				e.AddString("not-obj", "should-be-outside-obj")
@@ -181,7 +180,7 @@ func TestTextEncoderObjectFields(t *testing.T) {
 		},
 		{
 			desc:     "object (with nested namespace)",
-			expected: `"obj.obj-out"="obj-outside-namespace","obj.obj-namespace.obj-in"="obj-inside-namespace","not-obj"="should-be-outside-obj"`,
+			expected: `"obj.obj-out"="obj-outside-namespace" "obj.obj-namespace.obj-in"="obj-inside-namespace" "not-obj"="should-be-outside-obj"`,
 			f: func(e Encoder) {
 				assert.NoError(t, e.AddObject("obj", maybeNamespace{true}))
 				e.AddString("not-obj", "should-be-outside-obj")
@@ -189,7 +188,7 @@ func TestTextEncoderObjectFields(t *testing.T) {
 		},
 		{
 			desc:     "multiple open namespaces",
-			expected: `"k.foo"=1,"k.middle.foo"=2,"k.middle.inner.foo"=3`,
+			expected: `"k.foo"=1 "k.middle.foo"=2 "k.middle.inner.foo"=3`,
 			f: func(e Encoder) {
 				err := e.AddObject("k", ObjectMarshalerFunc(func(enc ObjectEncoder) error {
 					e.AddInt("foo", 1)
@@ -261,7 +260,7 @@ func TestTextEncoderArrays(t *testing.T) {
 		},
 		{
 			desc:     "objects (success)",
-			expected: `[{"loggable"="yes"},{"loggable"="yes"}]`,
+			expected: `[{"loggable":"yes"},{"loggable":"yes"}]`,
 			f: func(arr ArrayEncoder) {
 				assert.NoError(t, arr.AppendObject(loggable{true}), "Unexpected error appending an object.")
 			},
@@ -297,7 +296,7 @@ func TestTextEncoderArrays(t *testing.T) {
 		},
 		{
 			desc:     "object (no nested namespace) then string",
-			expected: `[{"obj-out"="obj-outside-namespace"},"should-be-outside-obj",{"obj-out"="obj-outside-namespace"},"should-be-outside-obj"]`,
+			expected: `[{"obj-out":"obj-outside-namespace"},"should-be-outside-obj",{"obj-out":"obj-outside-namespace"},"should-be-outside-obj"]`,
 			f: func(arr ArrayEncoder) {
 				assert.NoError(t, arr.AppendObject(maybeNamespace{false}))
 				arr.AppendString("should-be-outside-obj")
@@ -305,7 +304,7 @@ func TestTextEncoderArrays(t *testing.T) {
 		},
 		{
 			desc:     "object (with nested namespace) then string",
-			expected: `[{"obj-out"="obj-outside-namespace","obj-namespace.obj-in"="obj-inside-namespace"},"should-be-outside-obj",{"obj-out"="obj-outside-namespace","obj-namespace.obj-in"="obj-inside-namespace"},"should-be-outside-obj"]`,
+			expected: `[{"obj-out":"obj-outside-namespace","obj-namespace.obj-in":"obj-inside-namespace"},"should-be-outside-obj",{"obj-out":"obj-outside-namespace","obj-namespace.obj-in":"obj-inside-namespace"},"should-be-outside-obj"]`,
 			f: func(arr ArrayEncoder) {
 				assert.NoError(t, arr.AppendObject(maybeNamespace{true}))
 				arr.AppendString("should-be-outside-obj")
@@ -326,6 +325,36 @@ func TestTextEncoderArrays(t *testing.T) {
 				err := f(enc)
 				assert.NoError(t, err, "Unexpected error adding array to JSON encoder.")
 			})
+		})
+	}
+}
+
+func TestTextEncoder_TwoUsersWithNestedAddr(t *testing.T) {
+	u0 := user{name: "Sagar", age: 30, addr: addr{city: "Pune", zip: "411001"}}
+	u1 := user{name: "Amit", age: 28, addr: addr{city: "Mumbai", zip: "400001"}}
+
+	tests := []struct {
+		desc     string
+		expected string
+		f        func(Encoder)
+	}{
+		{
+			desc: "two users; addr as nested object via AddObject",
+			// AddObject("user", u0) opens a namespace for "user", then flattens the keys.
+			// Same for "user1". So we expect dotted keys:
+			// "user.name","user.age","user.addr.city","user.addr.zip", then the same for user1.
+			expected: `"user.name"="Sagar" "user.age"=30 "user.addr.city"="Pune" "user.addr.zip"="411001" ` +
+				`"user1.name"="Amit" "user1.age"=28 "user1.addr.city"="Mumbai" "user1.addr.zip"="400001"`,
+			f: func(e Encoder) {
+				require.NoError(t, e.AddObject("user", u0))
+				require.NoError(t, e.AddObject("user1", u1))
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.desc, func(t *testing.T) {
+			assertTextOutput(t, _defaultEncoderConfig, tt.expected, tt.f)
 		})
 	}
 }
@@ -369,7 +398,7 @@ func TestTextEncoderTimeArrays(t *testing.T) {
 			cfg := _defaultEncoderConfig
 			cfg.EncodeTime = tt.encoder
 
-			enc := &textEncoder{buf: bufferpool.Get(), prefixBuf: bufferpool.Get(), EncoderConfig: &cfg}
+			enc := NewTextEncoder(cfg).(*textEncoder)
 			err := enc.AddArray("array", ArrayMarshalerFunc(func(arr ArrayEncoder) error {
 				for _, time := range times {
 					arr.AppendTime(time)
@@ -392,9 +421,38 @@ func assertTextOutput(t testing.TB, cfg EncoderConfig, expected string, f func(E
 	f(enc)
 	expectedPrefix := `"foo"="bar"`
 	if expected != "" {
-		// If we expect output, it should be comma-separated from the previous
+		// If we expect output, it should be space-separated from the previous
 		// field.
-		expectedPrefix += ","
+		expectedPrefix += " "
 	}
 	assert.Equal(t, expectedPrefix+expected, enc.buf.String(), "Unexpected encoder output after adding as a second field.")
 }
+
+type addr struct {
+	city string
+	zip  string
+}
+
+// addr marshals as: city, zip
+func (a addr) MarshalLogObject(enc ObjectEncoder) error {
+	enc.AddString("city", a.city)
+	enc.AddString("zip", a.zip)
+	return nil
+}
+
+var _ ObjectMarshaler = (*addr)(nil)
+
+type user struct {
+	name string
+	age  int
+	addr addr
+}
+
+// user marshals name, age, and a nested object "addr" via AddObject.
+func (u user) MarshalLogObject(enc ObjectEncoder) error {
+	enc.AddString("name", u.name)
+	enc.AddInt("age", u.age)
+	return enc.AddObject("addr", u.addr)
+}
+
+var _ ObjectMarshaler = (*user)(nil)

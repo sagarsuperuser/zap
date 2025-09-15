@@ -50,6 +50,8 @@ func putTextEncoder(enc *textEncoder) {
 	enc.reflectEnc = nil
 	enc.prefixBuf.Free()
 	enc.prefixBuf = nil
+	enc.keyValSep = 0
+	enc.elementSep = 0
 	_textPool.Put(enc)
 }
 
@@ -61,6 +63,8 @@ type textEncoder struct {
 	// for encoding generic values by reflection
 	reflectBuf *buffer.Buffer
 	reflectEnc ReflectedEncoder
+	keyValSep  byte
+	elementSep byte
 }
 
 // NewTextEncoder creates a fast, low-allocation Text encoder. The encoder
@@ -96,6 +100,8 @@ func newTextEncoder(cfg EncoderConfig, spaced bool) *textEncoder {
 		buf:           bufferpool.Get(),
 		spaced:        spaced,
 		prefixBuf:     bufferpool.Get(),
+		keyValSep:     '=',
+		elementSep:    ' ',
 	}
 }
 
@@ -210,33 +216,44 @@ func (enc *textEncoder) AddUint64(key string, val uint64) {
 }
 
 func (enc *textEncoder) AppendArray(arr ArrayMarshaler) error {
+	// Array is JSON-compliant
+	enc.addElementSeparator()
 	old := enc.prefixBuf
+	oldKeyValSep := enc.keyValSep
+	oldElementSep := enc.elementSep
 	// Get new buffer to use for array elements
 	enc.prefixBuf = bufferpool.Get()
-	enc.addElementSeparator()
+	enc.keyValSep = ':'
+	enc.elementSep = ','
+
 	enc.buf.AppendString("[")
 	err := arr.MarshalLogArray(enc)
 	enc.buf.AppendString("]")
 	enc.prefixBuf.Free()
 	enc.prefixBuf = old
+
+	enc.keyValSep = oldKeyValSep
+	enc.elementSep = oldElementSep
 	return err
 }
 
 func (enc *textEncoder) AppendObject(obj ObjectMarshaler) error {
-	oldLen := enc.prefixBuf.Len()
 	enc.addElementSeparator()
+	oldLen := enc.prefixBuf.Len()
 	if oldLen == 0 {
 		// If no prefix, start new object
 		// eg - through AddArray/AppendArray Path
 		enc.buf.AppendString("{")
 	}
 	err := obj.MarshalLogObject(enc)
+
 	if oldLen == 0 {
 		enc.buf.AppendString("}")
 	}
 	last := enc.buf.Len() - 1
-	if last >= 0 && enc.buf.Bytes()[last] == ',' {
-		// Remove trailing comma, if nothing was added in MarshalLogObject
+	if last >= 0 && enc.buf.Bytes()[last] == enc.elementSep {
+		// Remove trailing elementSep(comma or space),
+		// in case nothing was added in MarshalLogObject
 		enc.buf.Truncate(last)
 	}
 	enc.prefixBuf.Truncate(oldLen)
@@ -369,6 +386,8 @@ func (enc *textEncoder) clone() *textEncoder {
 	clone.spaced = enc.spaced
 	clone.buf = bufferpool.Get()
 	clone.prefixBuf = bufferpool.Get()
+	clone.keyValSep = enc.keyValSep
+	clone.elementSep = enc.elementSep
 	return clone
 }
 
@@ -447,6 +466,8 @@ func (enc *textEncoder) EncodeEntry(ent Entry, fields []Field) (*buffer.Buffer, 
 func (enc *textEncoder) truncate() {
 	enc.buf.Reset()
 	enc.prefixBuf.Reset()
+	enc.keyValSep = '='
+	enc.elementSep = ' '
 }
 
 func (enc *textEncoder) closeOpenNamespaces() {
@@ -459,7 +480,7 @@ func (enc *textEncoder) addKey(key string) {
 	enc.buf.AppendByte('"')
 	enc.safeAddByteString(enc.prefixBuf.Bytes())
 	enc.buf.AppendByte('"')
-	enc.buf.AppendByte('=')
+	enc.buf.AppendByte(enc.keyValSep)
 	if enc.spaced {
 		enc.buf.AppendByte(' ')
 	}
@@ -472,10 +493,10 @@ func (enc *textEncoder) addElementSeparator() {
 		return
 	}
 	switch enc.buf.Bytes()[last] {
-	case '{', '[', '=', ',', ' ':
+	case '{', '[', '=', ',', ' ', ':':
 		return
 	default:
-		enc.buf.AppendByte(',')
+		enc.buf.AppendByte(enc.elementSep)
 		if enc.spaced {
 			enc.buf.AppendByte(' ')
 		}
