@@ -57,8 +57,19 @@ func TestTextEncodeEntry(t *testing.T) {
 		fields   []zapcore.Field
 	}{
 		{
-			desc:     "info entry with some fields",
-			expected: `"L"="info" "T"="2018-06-19T16:33:42.000Z" "N"="bob" "M"="lob law" "so"="passes" "answer"=42 "common_pie"=3.14 "a_float32"=2.71 "complex_value"="3.14-2.71i" "null_value"=null "array_with_null_elements"=[{},null,null,2] "such"={"aee":"lol","bee":123,"cee":0.9999,"dee":[{"key":"pi","val":3.141592653589793},{"key":"tau","val":6.283185307179586}]}`,
+			desc: "info entry with some fields",
+			expected: `"L"="info" ` +
+				`"T"="2018-06-19T16:33:42.000Z" ` +
+				`"N"="bob" ` +
+				`"M"="lob law" ` +
+				`"so"="passes" ` +
+				`"answer"=42 ` +
+				`"common_pie"=3.14 ` +
+				`"a_float32"=2.71 ` +
+				`"complex_value"="3.14-2.71i" ` +
+				`"null_value"=null ` +
+				`"array_with_null_elements"=[{},null,null,2] ` +
+				`"such"={"aee":"lol","bee":123,"cee":0.9999,"dee":[{"key":"pi","val":3.141592653589793},{"key":"tau","val":6.283185307179586}]}`,
 			ent: zapcore.Entry{
 				Level:      zapcore.InfoLevel,
 				Time:       time.Date(2018, 6, 19, 16, 33, 42, 99, time.UTC),

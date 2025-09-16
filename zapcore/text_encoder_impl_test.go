@@ -330,8 +330,18 @@ func TestTextEncoderArrays(t *testing.T) {
 }
 
 func TestTextEncoder_TwoUsersWithNestedAddr(t *testing.T) {
-	u0 := user{name: "Sagar", age: 30, addr: addr{city: "Pune", zip: "411001"}}
-	u1 := user{name: "Amit", age: 28, addr: addr{city: "Mumbai", zip: "400001"}}
+	u0 := user{
+		name: "Sagar",
+		age:  30,
+		addrs: []addr{
+			{city: "Pune", zip: "411001", geo: geo{lat: 18.5204, lon: 73.8567}},
+			{city: "Mumbai", zip: "400001", geo: geo{lat: 19.0760, lon: 72.8777}},
+		},
+		curAddr: addr{
+			city: "Pune", zip: "411001",
+			geo: geo{lat: 18.5204, lon: 73.8567},
+		},
+	}
 
 	tests := []struct {
 		desc     string
@@ -340,14 +350,14 @@ func TestTextEncoder_TwoUsersWithNestedAddr(t *testing.T) {
 	}{
 		{
 			desc: "two users; addr as nested object via AddObject",
-			// AddObject("user", u0) opens a namespace for "user", then flattens the keys.
-			// Same for "user1". So we expect dotted keys:
-			// "user.name","user.age","user.addr.city","user.addr.zip", then the same for user1.
-			expected: `"user.name"="Sagar" "user.age"=30 "user.addr.city"="Pune" "user.addr.zip"="411001" ` +
-				`"user1.name"="Amit" "user1.age"=28 "user1.addr.city"="Mumbai" "user1.addr.zip"="400001"`,
+			expected: `"user.name"="Sagar" "user.age"=30 ` +
+				`"user.addrs"=[{"city":"Pune","zip":"411001","geo.lat":18.5204,"geo.lon":73.8567},` +
+				`{"city":"Mumbai","zip":"400001","geo.lat":19.076,"geo.lon":72.8777}] ` +
+				`"user.cur_addr.city"="Pune" "user.cur_addr.zip"="411001" ` +
+				`"user.cur_addr.geo.lat"=18.5204 "user.cur_addr.geo.lon"=73.8567`,
+
 			f: func(e Encoder) {
 				require.NoError(t, e.AddObject("user", u0))
-				require.NoError(t, e.AddObject("user1", u1))
 			},
 		},
 	}
@@ -428,31 +438,66 @@ func assertTextOutput(t testing.TB, cfg EncoderConfig, expected string, f func(E
 	assert.Equal(t, expectedPrefix+expected, enc.buf.String(), "Unexpected encoder output after adding as a second field.")
 }
 
+// ----- nested leaf under addr -----
+type geo struct {
+	lat float64
+	lon float64
+}
+
+func (g geo) MarshalLogObject(enc ObjectEncoder) error {
+	enc.AddFloat64("lat", g.lat)
+	enc.AddFloat64("lon", g.lon)
+	return nil
+}
+
+var _ ObjectMarshaler = (*geo)(nil)
+
+// ----- addr now includes nested geo -----
 type addr struct {
 	city string
 	zip  string
+	geo  geo
 }
 
-// addr marshals as: city, zip
 func (a addr) MarshalLogObject(enc ObjectEncoder) error {
 	enc.AddString("city", a.city)
 	enc.AddString("zip", a.zip)
-	return nil
+	return enc.AddObject("geo", a.geo) // nested object inside addr
 }
 
 var _ ObjectMarshaler = (*addr)(nil)
 
+// ----- user unchanged except: key is "cur_addr" -----
 type user struct {
-	name string
-	age  int
-	addr addr
+	name    string
+	age     int
+	addrs   []addr // array of nested objects
+	curAddr addr   // single nested object (emitted as "cur_addr")
 }
 
-// user marshals name, age, and a nested object "addr" via AddObject.
+// array marshaler for []addr
+type addrList []addr
+
+func (al addrList) MarshalLogArray(arr ArrayEncoder) error {
+	for _, a := range al {
+		if err := arr.AppendObject(a); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (u user) MarshalLogObject(enc ObjectEncoder) error {
 	enc.AddString("name", u.name)
 	enc.AddInt("age", u.age)
-	return enc.AddObject("addr", u.addr)
+	if err := enc.AddArray("addrs", addrList(u.addrs)); err != nil {
+		return err
+	}
+	if err := enc.AddObject("cur_addr", u.curAddr); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 var _ ObjectMarshaler = (*user)(nil)
