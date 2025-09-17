@@ -169,6 +169,21 @@ func NewProductionConfig() Config {
 	}
 }
 
+func NewProductionTextConfig() Config {
+	return Config{
+		Level:       NewAtomicLevelAt(InfoLevel),
+		Development: false,
+		Sampling: &SamplingConfig{
+			Initial:    100,
+			Thereafter: 100,
+		},
+		Encoding:         "text",
+		EncoderConfig:    NewProductionEncoderConfig(),
+		OutputPaths:      []string{"stderr"},
+		ErrorOutputPaths: []string{"stderr"},
+	}
+}
+
 // NewDevelopmentEncoderConfig returns an opinionated EncoderConfig for
 // development environments.
 //

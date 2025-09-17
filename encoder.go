@@ -38,12 +38,15 @@ var (
 		"json": func(encoderConfig zapcore.EncoderConfig) (zapcore.Encoder, error) {
 			return zapcore.NewJSONEncoder(encoderConfig), nil
 		},
+		"text": func(encoderConfig zapcore.EncoderConfig) (zapcore.Encoder, error) {
+			return zapcore.NewTextEncoder(encoderConfig), nil
+		},
 	}
 	_encoderMutex sync.RWMutex
 )
 
 // RegisterEncoder registers an encoder constructor, which the Config struct
-// can then reference. By default, the "json" and "console" encoders are
+// can then reference. By default, the "json", "console" and "text" encoders are
 // registered.
 //
 // Attempting to register an encoder whose name is already taken returns an

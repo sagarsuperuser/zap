@@ -329,7 +329,7 @@ func TestTextEncoderArrays(t *testing.T) {
 	}
 }
 
-func TestTextEncoder_TwoUsersWithNestedAddr(t *testing.T) {
+func TestTextEncoderUserWithNestedAddr(t *testing.T) {
 	u0 := user{
 		name: "Sagar",
 		age:  30,
@@ -452,7 +452,7 @@ func (g geo) MarshalLogObject(enc ObjectEncoder) error {
 
 var _ ObjectMarshaler = (*geo)(nil)
 
-// ----- addr now includes nested geo -----
+// ----- addr includes nested geo -----
 type addr struct {
 	city string
 	zip  string
@@ -467,12 +467,11 @@ func (a addr) MarshalLogObject(enc ObjectEncoder) error {
 
 var _ ObjectMarshaler = (*addr)(nil)
 
-// ----- user unchanged except: key is "cur_addr" -----
 type user struct {
 	name    string
 	age     int
 	addrs   []addr // array of nested objects
-	curAddr addr   // single nested object (emitted as "cur_addr")
+	curAddr addr   // single nested object
 }
 
 // array marshaler for []addr

@@ -101,6 +101,14 @@ func NewProduction(options ...Option) (*Logger, error) {
 	return NewProductionConfig().Build(options...)
 }
 
+// NewProductionText builds a sensible production Logger that writes InfoLevel and
+// above logs to standard error as Text.
+//
+// It's a shortcut for NewProductionTextConfig().Build(...Option).
+func NewProductionText(options ...Option) (*Logger, error) {
+	return NewProductionTextConfig().Build(options...)
+}
+
 // NewDevelopment builds a development Logger that writes DebugLevel and above
 // logs to standard error in a human-friendly format.
 //

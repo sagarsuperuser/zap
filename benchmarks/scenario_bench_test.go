@@ -293,6 +293,15 @@ func BenchmarkWithoutFields(b *testing.B) {
 			}
 		})
 	})
+	b.Run("Zap.Text", func(b *testing.B) {
+		logger := newZapLoggerText(zap.DebugLevel)
+		b.ResetTimer()
+		b.RunParallel(func(pb *testing.PB) {
+			for pb.Next() {
+				logger.Info(getMessage(0))
+			}
+		})
+	})
 	b.Run("Zap.Check", func(b *testing.B) {
 		logger := newZapLogger(zap.DebugLevel)
 		b.ResetTimer()
@@ -453,6 +462,15 @@ func BenchmarkAccumulatedContext(b *testing.B) {
 	b.Logf("Logging with some accumulated context.")
 	b.Run("Zap", func(b *testing.B) {
 		logger := newZapLogger(zap.DebugLevel).With(fakeFields()...)
+		b.ResetTimer()
+		b.RunParallel(func(pb *testing.PB) {
+			for pb.Next() {
+				logger.Info(getMessage(0))
+			}
+		})
+	})
+	b.Run("Zap.Text", func(b *testing.B) {
+		logger := newZapLoggerText(zap.DebugLevel).With(fakeFields()...)
 		b.ResetTimer()
 		b.RunParallel(func(pb *testing.PB) {
 			for pb.Next() {
