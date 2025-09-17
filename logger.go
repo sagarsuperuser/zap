@@ -103,9 +103,10 @@ func NewProduction(options ...Option) (*Logger, error) {
 
 // NewProductionText builds a sensible production Logger that writes InfoLevel and
 // above logs to standard error as Text.
-//
-// It's a shortcut for NewProductionTextConfig().Build(...Option).
 func NewProductionText(options ...Option) (*Logger, error) {
+	RegisterEncoder("text", func(encoderConfig zapcore.EncoderConfig) (zapcore.Encoder, error) {
+		return zapcore.NewTextEncoder(encoderConfig), nil
+	})
 	return NewProductionTextConfig().Build(options...)
 }
 
