@@ -241,8 +241,8 @@ func (enc *textEncoder) AppendObject(obj ObjectMarshaler) error {
 	enc.addElementSeparator()
 	oldLen := enc.prefixBuf.Len()
 	if oldLen == 0 {
-		// If no prefix, start new object
-		// eg - through AddArray/AppendArray Path
+		// If no prefix, encode in JSON format,
+		// Eg scenario - through AddArray/AppendArray Path
 		enc.buf.AppendString("{")
 	}
 	err := obj.MarshalLogObject(enc)
@@ -251,10 +251,17 @@ func (enc *textEncoder) AppendObject(obj ObjectMarshaler) error {
 		enc.buf.AppendString("}")
 	}
 	last := enc.buf.Len() - 1
-	if last >= 0 && enc.buf.Bytes()[last] == enc.elementSep {
-		// Remove trailing elementSep(comma or space),
-		// in case nothing was added in MarshalLogObject
-		enc.buf.Truncate(last)
+	if last >= 0 {
+		// Remove trailing comma or space (if enc.spaced) if necessary
+		// to keep Format valid.
+		// Eg - if no fields were added to the object
+		if enc.spaced && enc.buf.Bytes()[last] == ' ' {
+			last--
+		}
+		if enc.buf.Bytes()[last] == enc.elementSep {
+			last--
+		}
+		enc.buf.Truncate(last + 1)
 	}
 	enc.prefixBuf.Truncate(oldLen)
 	return err
