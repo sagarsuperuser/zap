@@ -1,4 +1,4 @@
-# \:zap: zap
+# :zap: zap
 
 <div align="center">
 
